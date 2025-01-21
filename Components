@@ -1,0 +1,22 @@
+Components Utilized for the Project:
+
+1.HX711 Amplifiers:
+The HX711 is a high-precision 24-bit analog-to-digital converter (ADC) that interfaces the load cells with the Arduino. It amplifies the small voltage signals from the load cells, converting them into readable data that is processed by the Arduino in real-time, ensuring accurate force measurements.
+
+2.Load Cells (5kg, 2 units):
+Two 5kg load cells measure the drag and lift forces acting on the test object. One load cell captures drag along the x-axis, while the other measures lift along the y-axis. These values are sent to the HX711 amplifiers and processed by the Arduino for real-time force analysis.
+
+3.Servo Motors (2 units):
+Two servo motors are used to adjust the angle of attack of the test object within the wind tunnel. The servo motors allow for dynamic testing at varying angles, enabling the measurement of drag and lift forces across different orientations.
+
+4.Arduino Uno:
+The Arduino Uno serves as the central processing unit, handling inputs from the HX711 amplifiers, controlling the servo motors, and outputting real-time data to an LCD or PC. It manages all sensor data and controls the overall test system.
+
+5.Pitot Tube PC4 V1.1 Sensor:
+The Pitot Tube PC4 V1.1 sensor measures the dynamic pressure within the wind tunnel, which is essential for determining wind speed. The sensor's readings are used in conjunction with the force measurements to calculate the drag and lift coefficients of the test object.
+
+6.LCD Display:
+An LCD screen is integrated into the system to display real-time data, including the measured forces, angles of attack, and wind speed. The LCD provides a user-friendly interface for monitoring results during wind tunnel testing.
+
+7.External Battery (for Servo Control):
+Since the Arduino Uno consumes significant power, an external battery is used to power the servo motors separately. This ensures stable and continuous operation of the motors, allowing for precise adjustments of the test object’s angle of attack without overloading the Arduino’s power supply.
