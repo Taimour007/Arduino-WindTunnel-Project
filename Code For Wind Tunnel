@@ -1,0 +1,150 @@
+#include <Servo.h>         // Library for Servo control
+#include <Wire.h>          // Library for I2C communication
+#include <Adafruit_BMP085.h> // Library for BMP180 pressure sensor
+#include "HX711.h"         // Library for load cell HX711
+#include <SPI.h>           // Library for SPI communication
+#include <SD.h>            // Library for SD card
+
+// Pin Configurations
+#define HX711_DT 2         // Data pin for HX711
+#define HX711_SCK 3        // Clock pin for HX711
+#define SERVO1_PIN 9       // PWM pin for Servo 1 (AOA adjustment)
+#define SERVO2_PIN 10      // PWM pin for Servo 2 (Flap angle adjustment)
+#define SD_CS_PIN 4        // Chip select pin for SD card module
+
+// Initialize objects
+Servo servo1;  // Servo for AOA adjustment
+Servo servo2;  // Servo for flap angle adjustment
+Adafruit_BMP085 bmp; // Pressure sensor object
+HX711 loadCell; // HX711 object for load cells
+
+// Variables for load cell readings
+float forceDrag = 0.0; 
+float forceLift = 0.0; 
+
+// Variables for servo angles
+int aoaAngle = 0;   // Initial AOA angle
+int flapAngle = 0;  // Initial flap angle
+const int maxAOA = 40; // Max limit for AOA
+
+// Timing variables
+unsigned long prevAOATime = 0; // Timer for AOA updates
+unsigned long prevFlapTime = 0; // Timer for flap updates
+const int aoaInterval = 1000;   // 1 second interval
+const int flapInterval = 3000;  // 3 second interval
+
+// Variables for pressure sensor
+float pressure = 0.0; // Pressure in Pascals
+float temperature = 0.0; // Temperature in Celsius
+
+// SD card file
+File dataFile;
+
+void setup() {
+  Serial.begin(9600); // Start serial communication
+
+  // Initialize Load Cell
+  loadCell.begin(HX711_DT, HX711_SCK);
+  loadCell.set_scale(2280.f); // Set scale factor (adjust as per calibration)
+  loadCell.tare();            // Tare the scale for zeroing
+
+  // Initialize Servos
+  servo1.attach(SERVO1_PIN);
+  servo2.attach(SERVO2_PIN);
+
+  // Initialize Pressure Sensor
+  if (!bmp.begin()) {
+    Serial.println("Could not find BMP180 sensor. Check wiring!");
+    while (1); // Halt if BMP180 is not detected
+  }
+
+  // Initialize SD card
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("SD card initialization failed!");
+    while (1); // Halt if SD card is not detected
+  }
+  Serial.println("SD card initialized.");
+
+  // Create or open the data file
+  dataFile = SD.open("wind_tunnel.csv", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println("AoA Angle, Flap Angle, Force Drag (N), Force Lift (N), Pressure (hPa), Temperature (C)");
+    dataFile.close();
+  } else {
+    Serial.println("Error creating data file!");
+  }
+
+  // Set initial angles
+  servo1.write(aoaAngle);
+  servo2.write(flapAngle);
+
+  Serial.println("System Initialized!");
+}
+
+void loop() {
+  unsigned long currentTime = millis(); // Get current time
+
+  // Update AOA every second
+  if (currentTime - prevAOATime >= aoaInterval && aoaAngle < maxAOA) {
+    prevAOATime = currentTime;
+    aoaAngle++; // Increment AoA angle by 1 degree
+    servo1.write(aoaAngle);
+  }
+
+  // Update flap angle every 3 seconds
+  if (currentTime - prevFlapTime >= flapInterval && aoaAngle < maxAOA) {
+    prevFlapTime = currentTime;
+    flapAngle++; // Increment flap angle by 1 degree
+    servo2.write(flapAngle);
+  }
+
+  // Read force from load cells
+  if (loadCell.is_ready()) {
+    float weight = loadCell.get_units(10); // Average of 10 readings
+    forceDrag = weight * 9.81; // Convert to force (Newtons)
+    forceLift = forceDrag * 0.5; // Hypothetical adjustment for lift
+  } else {
+    Serial.println("HX711 not ready!");
+  }
+
+  // Read pressure and temperature from BMP180
+  pressure = bmp.readPressure(); // Pressure in Pascals
+  temperature = bmp.readTemperature(); // Temperature in Celsius
+
+  // Log data to SD card
+  dataFile = SD.open("wind_tunnel.csv", FILE_WRITE);
+  if (dataFile) {
+    dataFile.print(aoaAngle);
+    dataFile.print(", ");
+    dataFile.print(flapAngle);
+    dataFile.print(", ");
+    dataFile.print(forceDrag);
+    dataFile.print(", ");
+    dataFile.print(forceLift);
+    dataFile.print(", ");
+    dataFile.print(pressure / 100); // Convert to hPa
+    dataFile.print(", ");
+    dataFile.println(temperature);
+    dataFile.close();
+    Serial.println("Data logged to SD card.");
+  } else {
+    Serial.println("Error opening data file!");
+  }
+
+  // Print data to serial monitor
+  Serial.print("AoA Angle: ");
+  Serial.print(aoaAngle);
+  Serial.print("°, Flap Angle: ");
+  Serial.print(flapAngle);
+  Serial.print("°, Force Drag: ");
+  Serial.print(forceDrag);
+  Serial.print(" N, Force Lift: ");
+  Serial.print(forceLift);
+  Serial.print(" N, Pressure: ");
+  Serial.print(pressure / 100); // Convert to hPa
+  Serial.print(" hPa, Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+
+  delay(10); // Small delay for stability
+}
